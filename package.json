@@ -1,0 +1,50 @@
+{
+	"name": "@poststack.dev/sdk",
+	"version": "0.5.1",
+	"description": "Official TypeScript SDK for the PostStack Email API",
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"files": [
+		"dist",
+		"CHANGELOG.md",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc --noEmit",
+		"prepublishOnly": "bun run build && bun run typecheck"
+	},
+	"keywords": [
+		"email",
+		"api",
+		"poststack",
+		"sdk",
+		"typescript",
+		"email-api",
+		"transactional-email"
+	],
+	"license": "MIT",
+	"homepage": "https://poststack.dev/docs/sdk",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/getpoststack/sdk.git"
+	},
+	"bugs": {
+		"url": "https://github.com/getpoststack/sdk/issues"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"tsup": "^8.5.1",
+		"typescript": "~5.9"
+	}
+}
