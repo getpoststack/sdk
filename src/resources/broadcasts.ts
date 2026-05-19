@@ -13,8 +13,9 @@ import type {
 export class BroadcastsResource {
 	constructor(private readonly client: PostStackClient) {}
 
-	async create(input: CreateBroadcastInput): Promise<{ broadcast: Broadcast }> {
-		return this.client.post('/broadcasts', input);
+	async create(input: CreateBroadcastInput): Promise<Broadcast> {
+		const res = await this.client.post<{ broadcast: Broadcast }>('/broadcasts', input);
+		return res.broadcast;
 	}
 
 	async list(params?: ListParams): Promise<PaginatedResponse<Broadcast>> {
@@ -24,12 +25,19 @@ export class BroadcastsResource {
 		);
 	}
 
-	async get(id: string): Promise<{ broadcast: Broadcast }> {
-		return this.client.get(`/broadcasts/${encodeURIComponent(id)}`);
+	async get(id: string): Promise<Broadcast> {
+		const res = await this.client.get<{ broadcast: Broadcast }>(
+			`/broadcasts/${encodeURIComponent(id)}`,
+		);
+		return res.broadcast;
 	}
 
-	async update(id: string, input: UpdateBroadcastInput): Promise<{ broadcast: Broadcast }> {
-		return this.client.patch(`/broadcasts/${encodeURIComponent(id)}`, input);
+	async update(id: string, input: UpdateBroadcastInput): Promise<Broadcast> {
+		const res = await this.client.patch<{ broadcast: Broadcast }>(
+			`/broadcasts/${encodeURIComponent(id)}`,
+			input,
+		);
+		return res.broadcast;
 	}
 
 	async send(id: string): Promise<{ success: boolean }> {
@@ -44,8 +52,11 @@ export class BroadcastsResource {
 		return this.client.post(`/broadcasts/${encodeURIComponent(id)}/test`, input);
 	}
 
-	async getVariants(id: string): Promise<{ variants: BroadcastVariant[] }> {
-		return this.client.get(`/broadcasts/${encodeURIComponent(id)}/variants`);
+	async getVariants(id: string): Promise<BroadcastVariant[]> {
+		const res = await this.client.get<{ variants: BroadcastVariant[] }>(
+			`/broadcasts/${encodeURIComponent(id)}/variants`,
+		);
+		return res.variants;
 	}
 
 	async getVariantStats(id: string): Promise<BroadcastVariantStats> {

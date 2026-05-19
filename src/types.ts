@@ -24,6 +24,18 @@ export interface SendEmailInput {
 	scheduled_at?: string;
 	template_id?: string;
 	variables?: Record<string, string>;
+	/** Append a one-click `List-Unsubscribe` header (recommended for marketing-style sends). */
+	unsubscribe?: boolean;
+	/** Per-send override of the domain-level open/click tracking defaults. */
+	tracking?: {
+		opens?: boolean;
+		clicks?: boolean;
+	};
+	/**
+	 * Coalescing window for `idempotency_key` in hours. Defaults to the
+	 * server-side window (24h). Must be between 1 and 72.
+	 */
+	idempotency_window_hours?: number;
 }
 
 export interface BatchSendInput {
@@ -32,7 +44,7 @@ export interface BatchSendInput {
 
 export interface CreateDomainInput {
 	name: string;
-	region?: 'eu-west-1' | 'us-east-1' | 'sa-east-1' | 'ap-northeast-1';
+	region?: 'eu-west-1';
 	custom_return_path?: string;
 	open_tracking?: boolean;
 	click_tracking?: boolean;
@@ -60,12 +72,36 @@ export interface UpdateContactInput {
 	properties?: Record<string, unknown>;
 }
 
+/**
+ * One leaf condition in a segment rules tree. `field` is a contact attribute
+ * (e.g. `email`, `firstName`), `comparator` is one of the server-supported
+ * comparators (`equals`, `not_equals`, `contains`, `starts_with`, `ends_with`),
+ * and `value` is the string to compare against.
+ *
+ * Note: the field is **comparator**, not operator — that name is reserved for
+ * the rules-tree boolean connective (`and` / `or`).
+ */
+export interface SegmentCondition {
+	field: string;
+	comparator: 'equals' | 'not_equals' | 'contains' | 'starts_with' | 'ends_with';
+	value: string;
+}
+
+export interface SegmentRules {
+	operator: 'and' | 'or';
+	conditions: SegmentCondition[];
+}
+
 export interface CreateSegmentInput {
 	name: string;
+	/** Omit (or pass `null`) to create a manual segment. Provide rules for a dynamic segment. */
+	rules?: SegmentRules | null;
 }
 
 export interface UpdateSegmentInput {
 	name: string;
+	/** Omit to leave rules unchanged; pass `null` to convert a dynamic segment back to manual. */
+	rules?: SegmentRules | null;
 }
 
 export interface AddContactsInput {
@@ -78,6 +114,10 @@ export interface CreateTemplateInput {
 	html: string;
 	text?: string;
 	variables?: string[];
+	/** Authoring mode. `visual` stores the block tree; PostStack compiles it to HTML. */
+	builder_type?: 'html' | 'visual';
+	/** Block tree when builder_type is `visual`. */
+	builder_blocks?: Array<Record<string, unknown>>;
 }
 
 export interface UpdateTemplateInput {
@@ -86,6 +126,8 @@ export interface UpdateTemplateInput {
 	html?: string;
 	text?: string;
 	variables?: string[];
+	builder_type?: 'html' | 'visual';
+	builder_blocks?: Array<Record<string, unknown>>;
 }
 
 export interface CreateWebhookInput {
@@ -179,7 +221,7 @@ export type DomainStatus = 'pending' | 'verified' | 'failed';
 
 export type TlsMode = 'opportunistic' | 'enforced';
 
-export type Region = 'eu-west-1' | 'us-east-1' | 'sa-east-1' | 'ap-northeast-1';
+export type Region = 'eu-west-1';
 
 export type DnsRecordType = 'TXT' | 'CNAME' | 'MX' | 'SRV';
 
@@ -272,6 +314,12 @@ export interface ApiKey {
 	lastUsedAt?: string | null;
 	expiresAt?: string | null;
 	createdAt: string;
+	/**
+	 * Plaintext secret. Only present on responses from `apiKeys.create()` and
+	 * `apiKeys.rotate()` — listed/fetched keys never include this value (the
+	 * server only stores a peppered hash).
+	 */
+	key?: string;
 }
 
 export interface PaginationMeta {
@@ -311,6 +359,21 @@ export interface ListContactsParams extends ListParams {
 
 export type BroadcastStatus = 'draft' | 'queued' | 'sending' | 'sent' | 'cancelled';
 
+export interface BroadcastAbVariantInput {
+	name: string;
+	subject: string;
+	html?: string;
+	text?: string;
+	/** Share of the audience to receive this variant during the test, 1-100. Variant weights must sum to 100. */
+	weight: number;
+}
+
+export interface BroadcastAbTestInput {
+	variants: BroadcastAbVariantInput[];
+	/** How long to collect open-rate data before picking the winner and sending to the rest. */
+	test_duration_minutes: number;
+}
+
 export interface CreateBroadcastInput {
 	segment_id: string;
 	from: string;
@@ -321,6 +384,8 @@ export interface CreateBroadcastInput {
 	name?: string;
 	scheduled_at?: string;
 	topic_id?: number;
+	/** Enable A/B testing. When set, the primary `subject`/`html`/`text` are ignored in favor of the variant list. */
+	ab_test?: BroadcastAbTestInput;
 }
 
 export interface UpdateBroadcastInput {
@@ -410,20 +475,12 @@ export interface ImportContactsResult {
 // Segment preview types
 // ──────────────────────────────────────────────────────────────
 
-export interface SegmentRule {
-	field: string;
-	operator: string;
-	value: unknown;
-}
-
 export interface SegmentPreviewInput {
-	rules: SegmentRule[];
-	logic?: 'and' | 'or';
+	rules: SegmentRules;
 }
 
 export interface SegmentPreviewResult {
 	count: number;
-	sample: Contact[];
 }
 
 // ──────────────────────────────────────────────────────────────

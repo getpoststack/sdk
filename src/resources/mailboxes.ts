@@ -12,20 +12,23 @@ import type {
 export class MailboxesResource {
 	constructor(private readonly client: PostStackClient) {}
 
-	async create(input: CreateMailboxInput): Promise<{ mailbox: Mailbox }> {
-		return this.client.post('/mailboxes', input);
+	async create(input: CreateMailboxInput): Promise<Mailbox> {
+		const res = await this.client.post<{ mailbox: Mailbox }>('/mailboxes', input);
+		return res.mailbox;
 	}
 
 	async list(params?: ListParams): Promise<PaginatedResponse<Mailbox>> {
 		return this.client.get('/mailboxes', params as Record<string, string | number | undefined>);
 	}
 
-	async get(id: number): Promise<{ mailbox: Mailbox }> {
-		return this.client.get(`/mailboxes/${id}`);
+	async get(id: number): Promise<Mailbox> {
+		const res = await this.client.get<{ mailbox: Mailbox }>(`/mailboxes/${id}`);
+		return res.mailbox;
 	}
 
-	async update(id: number, input: UpdateMailboxInput): Promise<{ mailbox: Mailbox }> {
-		return this.client.patch(`/mailboxes/${id}`, input);
+	async update(id: number, input: UpdateMailboxInput): Promise<Mailbox> {
+		const res = await this.client.patch<{ mailbox: Mailbox }>(`/mailboxes/${id}`, input);
+		return res.mailbox;
 	}
 
 	async delete(id: number): Promise<{ success: boolean }> {
@@ -36,8 +39,9 @@ export class MailboxesResource {
 		return this.client.post(`/mailboxes/${id}/password`, { password });
 	}
 
-	async createAlias(input: CreateMailboxAliasInput): Promise<{ alias: MailboxAlias }> {
-		return this.client.post('/mailboxes/aliases', input);
+	async createAlias(input: CreateMailboxAliasInput): Promise<MailboxAlias> {
+		const res = await this.client.post<{ alias: MailboxAlias }>('/mailboxes/aliases', input);
+		return res.alias;
 	}
 
 	async listAliases(params?: ListParams): Promise<PaginatedResponse<MailboxAlias>> {

@@ -1,5 +1,12 @@
 import { PostStackError } from './errors.ts';
 
+/**
+ * Mirror of `package.json#version`. Update both together when releasing —
+ * the User-Agent header below embeds this string so PostStack server logs
+ * can attribute requests to a specific SDK release without a build step.
+ */
+export const VERSION = '0.7.0';
+
 interface PostStackClientOptions {
 	/** Per-attempt request timeout in milliseconds. Defaults to 30_000. */
 	timeoutMs?: number;
@@ -39,7 +46,7 @@ export class PostStackClient {
 		this.headers = {
 			Authorization: `Bearer ${apiKey}`,
 			'Content-Type': 'application/json',
-			'User-Agent': 'PostStack-SDK/0.2.0',
+			'User-Agent': `PostStack-TypeScript-SDK/${VERSION}`,
 		};
 		this.timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 		this.maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES;

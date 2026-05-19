@@ -50,6 +50,11 @@ export class SegmentsResource {
 		);
 	}
 
+	/**
+	 * Counts contacts matching a rules tree without persisting a segment.
+	 * Returns the count only — no sample list (use `getContacts()` on a
+	 * saved segment if you need member records).
+	 */
 	async previewRules(input: SegmentPreviewInput): Promise<SegmentPreviewResult> {
 		return this.client.post('/segments/preview', input);
 	}

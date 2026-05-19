@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"lib": ["ESNext"],
+		"lib": ["ESNext", "DOM"],
 		"module": "esnext",
 		"target": "esnext",
 		"moduleResolution": "bundler",
@@ -12,7 +12,9 @@
 		"noImplicitReturns": true,
 		"exactOptionalPropertyTypes": true,
 		"isolatedModules": true,
-		"allowImportingTsExtensions": true
+		"allowImportingTsExtensions": true,
+		"types": ["bun"],
+		"ignoreDeprecations": "6.0"
 	},
 	"include": ["src/**/*.ts"]
 }

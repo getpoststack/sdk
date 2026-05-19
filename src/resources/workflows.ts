@@ -11,16 +11,21 @@ import type {
 export class WorkflowsResource {
 	constructor(private readonly client: PostStackClient) {}
 
-	async list(): Promise<{ data: Workflow[] }> {
-		return this.client.get('/workflows');
+	async list(): Promise<Workflow[]> {
+		const res = await this.client.get<{ data: Workflow[] }>('/workflows');
+		return res.data;
 	}
 
-	async create(input: CreateWorkflowInput): Promise<{ workflow: Workflow }> {
-		return this.client.post('/workflows', input);
+	async create(input: CreateWorkflowInput): Promise<Workflow> {
+		const res = await this.client.post<{ workflow: Workflow }>('/workflows', input);
+		return res.workflow;
 	}
 
-	async get(id: string): Promise<{ workflow: Workflow }> {
-		return this.client.get(`/workflows/${encodeURIComponent(id)}`);
+	async get(id: string): Promise<Workflow> {
+		const res = await this.client.get<{ workflow: Workflow }>(
+			`/workflows/${encodeURIComponent(id)}`,
+		);
+		return res.workflow;
 	}
 
 	async delete(id: string): Promise<{ success: boolean }> {
@@ -43,12 +48,18 @@ export class WorkflowsResource {
 		return this.client.patch(`/workflows/${encodeURIComponent(id)}/steps/${stepId}`, input);
 	}
 
-	async activate(id: string): Promise<{ workflow: Workflow }> {
-		return this.client.post(`/workflows/${encodeURIComponent(id)}/activate`);
+	async activate(id: string): Promise<Workflow> {
+		const res = await this.client.post<{ workflow: Workflow }>(
+			`/workflows/${encodeURIComponent(id)}/activate`,
+		);
+		return res.workflow;
 	}
 
-	async pause(id: string): Promise<{ workflow: Workflow }> {
-		return this.client.post(`/workflows/${encodeURIComponent(id)}/pause`);
+	async pause(id: string): Promise<Workflow> {
+		const res = await this.client.post<{ workflow: Workflow }>(
+			`/workflows/${encodeURIComponent(id)}/pause`,
+		);
+		return res.workflow;
 	}
 
 	async trigger(id: string, input: TriggerWorkflowInput): Promise<{ success: boolean }> {

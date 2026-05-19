@@ -20,8 +20,14 @@ export class EmailsResource {
 		return this.client.post('/emails/batch', input);
 	}
 
+	/**
+	 * Server returns `{ email }`; unwrap so callers receive the bare `Email`
+	 * shape the type signature promises. Same convention as
+	 * `contacts.get()` / `templates.get()`.
+	 */
 	async get(id: string): Promise<Email> {
-		return this.client.get(`/emails/${encodeURIComponent(id)}`);
+		const res = await this.client.get<{ email: Email }>(`/emails/${encodeURIComponent(id)}`);
+		return res.email;
 	}
 
 	async list(params?: ListEmailsParams): Promise<PaginatedResponse<Email>> {
@@ -38,11 +44,17 @@ export class EmailsResource {
 		return this.client.post(`/emails/${encodeURIComponent(id)}/cancel`);
 	}
 
-	async getEvents(id: string): Promise<{ events: EmailEvent[] }> {
-		return this.client.get(`/emails/${encodeURIComponent(id)}/events`);
+	async getEvents(id: string): Promise<EmailEvent[]> {
+		const res = await this.client.get<{ events: EmailEvent[] }>(
+			`/emails/${encodeURIComponent(id)}/events`,
+		);
+		return res.events;
 	}
 
-	async getInsights(id: string): Promise<{ warnings: EmailInsightWarning[] }> {
-		return this.client.get(`/emails/${encodeURIComponent(id)}/insights`);
+	async getInsights(id: string): Promise<EmailInsightWarning[]> {
+		const res = await this.client.get<{ warnings: EmailInsightWarning[] }>(
+			`/emails/${encodeURIComponent(id)}/insights`,
+		);
+		return res.warnings;
 	}
 }
