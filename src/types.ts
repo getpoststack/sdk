@@ -54,7 +54,12 @@ export interface CreateDomainInput {
 export interface UpdateDomainInput {
 	open_tracking?: boolean;
 	click_tracking?: boolean;
+	tracking_domain?: string | null;
 	tls_mode?: 'opportunistic' | 'enforced';
+	inbound_enabled?: boolean;
+	catch_all?: boolean;
+	stream_preference?: 'any' | 'transactional' | 'marketing' | 'notification';
+	bimi_logo_url?: string | null;
 }
 
 export interface CreateContactInput {
@@ -254,14 +259,19 @@ export interface DnsRecord {
 
 export interface Domain {
 	id: number;
+	publicId?: string;
 	name: string;
 	status: DomainStatus;
 	region: Region;
 	dnsRecords: DnsRecord[];
 	openTracking: boolean;
 	clickTracking: boolean;
+	trackingDomain?: string | null;
 	catchAll: boolean;
+	inboundEnabled?: boolean;
 	tlsMode: TlsMode;
+	streamPreference?: 'any' | 'transactional' | 'marketing' | 'notification';
+	bimiLogoUrl?: string | null;
 	verifiedAt?: string;
 	createdAt: string;
 }

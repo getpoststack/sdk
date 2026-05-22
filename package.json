@@ -1,6 +1,6 @@
 {
 	"name": "@poststack.dev/sdk",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"description": "Official TypeScript SDK for the PostStack Email API",
 	"type": "module",
 	"sideEffects": false,

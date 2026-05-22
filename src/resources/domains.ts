@@ -28,7 +28,9 @@ export class DomainsResource {
 	}
 
 	async verify(id: number): Promise<Domain> {
-		const res = await this.client.post<{ domain: Domain }>(`/domains/${id}/verify`);
+		const res = await this.client.post<{ queued: true; domain: Domain }>(
+			`/domains/${id}/verify`,
+		);
 		return res.domain;
 	}
 
