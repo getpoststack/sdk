@@ -6,6 +6,10 @@ import type {
 	SegmentPreviewInput,
 	SegmentPreviewResult,
 	Segment,
+	SegmentBroadcastSummary,
+	SegmentGrowth,
+	Contact,
+	PaginatedResponse,
 	ListParams,
 } from '../types.ts';
 
@@ -17,10 +21,12 @@ export class SegmentsResource {
 		return res.segment;
 	}
 
-	async list(params?: ListParams): Promise<{ segments: Segment[] }> {
-		return this.client.get('/segments', params as Record<string, string | number | undefined>);
+	/** Every segment on the team — the route does not paginate. */
+	async list(): Promise<{ segments: Segment[] }> {
+		return this.client.get('/segments');
 	}
 
+	/** `id` is the segment's `publicId` (`seg_…`). */
 	async get(id: string): Promise<Segment> {
 		const res = await this.client.get<{ segment: Segment }>(
 			`/segments/${encodeURIComponent(id)}`,
@@ -40,7 +46,12 @@ export class SegmentsResource {
 		return this.client.delete(`/segments/${encodeURIComponent(id)}`);
 	}
 
-	async addContacts(id: string, input: AddContactsInput): Promise<{ success: boolean }> {
+	/**
+	 * Adds contacts (by `con_…` publicId) to a manual segment. `added` counts
+	 * the rows actually inserted, so contacts already in the segment and
+	 * unknown ids do not count; a request where none resolve is a `400`.
+	 */
+	async addContacts(id: string, input: AddContactsInput): Promise<{ added: number }> {
 		return this.client.post(`/segments/${encodeURIComponent(id)}/contacts`, input);
 	}
 
@@ -50,10 +61,25 @@ export class SegmentsResource {
 		);
 	}
 
+	/** Pages through a segment's members (default 50 per page, max 100). */
+	async members(id: string, params?: ListParams): Promise<PaginatedResponse<Contact>> {
+		return this.client.get(`/segments/${encodeURIComponent(id)}/members`, { ...params });
+	}
+
+	/** Cumulative membership per day over the last `days` (default 30, max 365). */
+	async growth(id: string, days?: number): Promise<SegmentGrowth> {
+		return this.client.get(`/segments/${encodeURIComponent(id)}/growth`, { days });
+	}
+
+	/** Broadcasts that targeted this segment, newest first. */
+	async broadcasts(id: string): Promise<{ broadcasts: SegmentBroadcastSummary[] }> {
+		return this.client.get(`/segments/${encodeURIComponent(id)}/broadcasts`);
+	}
+
 	/**
 	 * Counts contacts matching a rules tree without persisting a segment.
-	 * Returns the count only — no sample list (use `getContacts()` on a
-	 * saved segment if you need member records).
+	 * Returns the count only — no sample list (use `members()` on a saved
+	 * segment if you need member records).
 	 */
 	async previewRules(input: SegmentPreviewInput): Promise<SegmentPreviewResult> {
 		return this.client.post('/segments/preview', input);

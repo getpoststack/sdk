@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { PostStackClient } from './client.ts';
 import { PostStackError } from './errors.ts';
@@ -19,6 +21,26 @@ afterEach(() => {
 });
 
 describe('PostStackClient request behavior', () => {
+	test('User-Agent matches package.json#version', async () => {
+		// Drift between the SDK's internal VERSION and package.json#version means
+		// users on the new npm version are reported in server logs as the old one.
+		// Caught a 0.7.0/0.7.1 drift after the 0.7.1 release shipped.
+		const pkgPath = join(import.meta.dir, '..', 'package.json');
+		const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string };
+		let capturedUa: string | undefined;
+		stubFetch(async (_input, init) => {
+			const headers = new Headers(init?.headers ?? {});
+			capturedUa = headers.get('user-agent') ?? undefined;
+			return new Response('{}', {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		});
+		const client = new PostStackClient('sk_test_abc', 'https://api.example.com');
+		await client.get<unknown>('/ping');
+		expect(capturedUa).toBe(`PostStack-TypeScript-SDK/${pkg.version}`);
+	});
+
 	test('retries on 503 and eventually succeeds', async () => {
 		let calls = 0;
 		stubFetch(async () => {

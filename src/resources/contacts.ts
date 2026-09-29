@@ -7,6 +7,7 @@ import type {
 	Contact,
 	PaginatedResponse,
 	ListContactsParams,
+	ExportContactsParams,
 } from '../types.ts';
 
 export class ContactsResource {
@@ -18,9 +19,10 @@ export class ContactsResource {
 	}
 
 	async list(params?: ListContactsParams): Promise<PaginatedResponse<Contact>> {
-		return this.client.get('/contacts', params as Record<string, string | number | undefined>);
+		return this.client.get('/contacts', { ...params });
 	}
 
+	/** `id` is the contact's `publicId` (`con_…`), as on every contact method. */
 	async get(id: string): Promise<Contact> {
 		const res = await this.client.get<{ contact: Contact }>(
 			`/contacts/${encodeURIComponent(id)}`,
@@ -54,11 +56,19 @@ export class ContactsResource {
 		return res.contact;
 	}
 
+	/**
+	 * Imports up to 10,000 contacts. Existing emails are skipped, not updated;
+	 * `errors` holds `"<email>: <reason>"` strings for rows that failed.
+	 */
 	async import(input: ImportContactsInput): Promise<ImportContactsResult> {
 		return this.client.post('/contacts/import', input);
 	}
 
-	async exportCsv(): Promise<string> {
-		return this.client.get('/contacts/export');
+	/**
+	 * The contact list (or one segment of it) as CSV text. The endpoint answers
+	 * `text/csv`, so this resolves to the raw file, not parsed JSON.
+	 */
+	async exportCsv(params?: ExportContactsParams): Promise<string> {
+		return this.client.getText('/contacts/export', { ...params });
 	}
 }

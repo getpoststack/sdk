@@ -5,10 +5,7 @@ export class SuppressionsResource {
 	constructor(private readonly client: PostStackClient) {}
 
 	async list(params?: ListParams): Promise<PaginatedResponse<Suppression>> {
-		return this.client.get(
-			'/suppressions',
-			params as Record<string, string | number | undefined>,
-		);
+		return this.client.get('/suppressions', { ...params });
 	}
 
 	async add(input: AddSuppressionInput): Promise<{ success: boolean }> {

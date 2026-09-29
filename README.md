@@ -62,8 +62,8 @@ await client.domains.verify(domain.id);
 // Assign a dedicated IP
 await client.domains.assignIp(domain.id, ipAddressId);
 
-// DMARC reports
-const reports = await client.domains.getDmarcReports(domain.id);
+// DMARC reports — note the { reports, pagination } envelope and `perPage`
+const { reports, pagination } = await client.domains.getDmarcReports(domain.id, { perPage: 50 });
 const stats = await client.domains.getDmarcStats(domain.id, 30); // last 30 days
 const sources = await client.domains.getDmarcSources(domain.id);
 ```
@@ -76,14 +76,14 @@ Create, update, list, import, export, and manage contacts.
 // Create a contact
 await client.contacts.create({ email: 'user@example.com', first_name: 'Jane' });
 
-// Bulk import contacts
-const result = await client.contacts.import({
+// Bulk import contacts (existing emails are skipped, not updated)
+const { imported, skipped, errors } = await client.contacts.import({
 	contacts: [{ email: 'a@example.com' }, { email: 'b@example.com' }],
-	update_existing: true,
 });
 
-// Export all contacts as CSV
+// Export all contacts — or one segment — as CSV text
 const csv = await client.contacts.exportCsv();
+const vipCsv = await client.contacts.exportCsv({ segment_id: 'seg_...' });
 ```
 
 ### `client.contactProperties`
@@ -131,12 +131,12 @@ Manage opt-in topics and contact subscriptions.
 // Create a topic
 const { topic } = await client.subscriptionTopics.create({ name: 'Product updates' });
 
-// Subscribe / unsubscribe a contact
-await client.subscriptionTopics.subscribe(contactId, topic.id);
-await client.subscriptionTopics.unsubscribe(contactId, topic.id);
+// Subscribe / unsubscribe a contact (IDs are publicIds: con_… and top_…)
+await client.subscriptionTopics.subscribe(contact.id, topic.publicId);
+await client.subscriptionTopics.unsubscribe(contact.id, topic.publicId);
 
 // Get all subscriptions for a contact
-const { subscriptions } = await client.subscriptionTopics.getContactSubscriptions(contactId);
+const { subscriptions } = await client.subscriptionTopics.getContactSubscriptions(contact.id);
 ```
 
 ### `client.templates`
@@ -145,7 +145,7 @@ Email templates with versioning, presets, publish/unpublish, and duplicate.
 
 ```typescript
 // Use a built-in preset as a starting point
-const { presets } = await client.templates.getPresets();
+const presets = await client.templates.getPresets();
 const template = await client.templates.usePreset(presets[0].id);
 
 // Duplicate an existing template
@@ -180,11 +180,58 @@ Webhook endpoint management including delivery history and replay.
 
 ```typescript
 // List delivery history
-const deliveries = await client.webhooks.getDeliveries(webhookId);
+const { deliveries, pagination } = await client.webhooks.getDeliveries(webhookId);
 
 // Replay a failed delivery
 await client.webhooks.replay(webhookId, deliveryId);
 ```
+
+### Verifying webhook signatures
+
+Every webhook we send carries an `X-PostStack-Signature` header. **Verify it
+before trusting the payload** — without this check your endpoint will accept
+anything anyone posts to it.
+
+Verification needs no client and no API key, only the raw body, the header and
+the endpoint's signing secret, so it is a static:
+
+```typescript
+import { PostStack } from '@poststack.dev/sdk';
+
+// Express — note `express.raw`, not `express.json`.
+app.post('/webhooks/poststack', express.raw({ type: 'application/json' }), async (req, res) => {
+	const ok = await PostStack.Webhooks.verify(
+		req.body.toString('utf8'),
+		req.header('X-PostStack-Signature') ?? '',
+		process.env.POSTSTACK_WEBHOOK_SECRET!,
+	);
+	if (!ok) return res.status(401).end();
+
+	const event = JSON.parse(req.body.toString('utf8'));
+	// …handle the event
+	res.status(200).end();
+});
+```
+
+Pass the **raw** body exactly as received. Parsing to an object and
+re-serialising changes the bytes and the HMAC will not match.
+
+If your handler never calls the API, import the resource on its own so the
+client is not bundled with it:
+
+```typescript
+import { WebhooksResource } from '@poststack.dev/sdk';
+
+const ok = await WebhooksResource.verify(rawBody, signatureHeader, secret);
+```
+
+The header is a comma-separated list of `sha256=<hex>` signatures. A
+steady-state delivery carries one, but rotating a signing secret keeps the old
+one valid for a grace window — 24 hours by default — and every delivery inside
+that window is signed with **both** secrets. Verification passes if your secret
+matches any entry, so a rotation needs no change on your side; a handler that
+compares the whole header against a single HMAC will reject every delivery in
+the window.
 
 ### `client.suppressions`
 
@@ -200,24 +247,37 @@ await client.suppressions.remove('bounce@example.com');
 Automated email workflows triggered by contact events or manually.
 
 ```typescript
-// Create a workflow
-const { workflow } = await client.workflows.create({
+// Create a workflow (returns the Workflow directly)
+const workflow = await client.workflows.create({
 	name: 'Welcome series',
 	trigger_type: 'contact.created',
 });
 
-// Add a step
-await client.workflows.addStep(workflow.publicId, {
-	step_type: 'send_email',
-	config: { template_id: '...', delay_minutes: 0 },
-	position: 1,
+// Define the automation as a graph of nodes + edges (the v2 model — the old
+// step API was removed). Replace the whole graph atomically:
+await client.workflows.putGraph(workflow.publicId, {
+	nodes: [
+		{ public_id: 'n1', type: 'trigger', config: {}, canvas_x: 0, canvas_y: 0 },
+		{
+			public_id: 'n2',
+			type: 'send_email',
+			config: { template_id: '...' },
+			canvas_x: 0,
+			canvas_y: 120,
+		},
+	],
+	edges: [{ from_public_id: 'n1', to_public_id: 'n2', branch: null }],
 });
+
+// Optional: validate the stored graph before activating
+const result = await client.workflows.validateGraph(workflow.publicId);
+if (!result.valid) throw new Error(result.errors.join(', '));
 
 // Activate
 await client.workflows.activate(workflow.publicId);
 
-// Manually trigger for a specific contact
-await client.workflows.trigger(workflow.publicId, { contact_id: 42 });
+// Manually trigger for a specific contact (active `manual` workflows only)
+const { run } = await client.workflows.trigger(workflow.publicId, { contact_id: 'con_...' });
 ```
 
 ### `client.signupForms`
@@ -256,28 +316,80 @@ Managed IMAP/POP3 mailboxes and aliases.
 
 ```typescript
 // Create a mailbox
-const { mailbox } = await client.mailboxes.create({
+const mailbox = await client.mailboxes.create({
 	domainId: domain.id,
 	localPart: 'support',
 	password: 'securepassword',
 });
 
-// Create an alias
+// Create an alias (destination is the mailbox publicId)
 await client.mailboxes.createAlias({
 	domainId: domain.id,
 	localPart: 'help',
-	destinationMailboxId: mailbox.id,
+	destinationMailboxId: mailbox.publicId,
+});
+```
+
+### `client.inboundEmails`
+
+Read, reply to, and forward inbound mail received on your verified domains.
+Inbound email IDs are numeric.
+
+```typescript
+// List received messages (most recent first)
+const { data, meta } = await client.inboundEmails.list({ page: 1, per_page: 20 });
+
+// Fetch one with full body + headers
+const email = await client.inboundEmails.get(data[0].id);
+console.log(email.fromName, email.fromAddress, email.subject);
+
+// Attachments
+const attachments = await client.inboundEmails.listAttachments(email.id);
+const bytes = await client.inboundEmails.downloadAttachment(email.id, attachments[0].id);
+
+// Reply (threaded) or forward
+await client.inboundEmails.reply(email.id, {
+	from: 'Support <support@yourdomain.com>',
+	text: 'Thanks for reaching out!',
+});
+await client.inboundEmails.forward(email.id, {
+	from: 'Support <support@yourdomain.com>',
+	to: ['escalation@yourdomain.com'],
 });
 ```
 
 ### `client.apiKeys`
 
-Create and manage API keys (requires session auth).
+Create and manage API keys. Managing keys with an API key needs a `full_access`
+key, and minting another `full_access` key that way needs `allow_full_access: true`.
 
 ```typescript
 const key = await client.apiKeys.create({ name: 'Production', permission: 'sending_access' });
 await client.apiKeys.revoke(key.id);
 ```
+
+### `client.notificationChannels`
+
+Slack, Discord and Telegram destinations for account events, addressed by `nc_…` id.
+
+```typescript
+const channel = await client.notificationChannels.create({
+	type: 'slack',
+	name: 'Ops',
+	events: ['email.bounced', 'email.complained'],
+	config: { webhookUrl: 'https://hooks.slack.com/services/...' },
+});
+await client.notificationChannels.test(channel.publicId);
+```
+
+## Retries and rate limits
+
+Network errors, timeouts, `408` and `5xx` are retried up to `maxRetries` (default 3)
+with jittered exponential backoff, or after `Retry-After` when the server sends it. A
+`429` is retried only when it carries `Retry-After` of at most 60 seconds: a quota
+`429` (monthly plan limit, daily sending cap) has none and is thrown at once. A thrown
+`PostStackError` exposes `statusCode`, `code`, `requestId`, `retryAfter` (seconds) and
+the response `headers`.
 
 ## Links
 

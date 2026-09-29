@@ -1,5 +1,5 @@
 import type { PostStackClient } from '../client.ts';
-import type { CreateApiKeyInput, ApiKey, ListParams } from '../types.ts';
+import type { CreateApiKeyInput, ApiKey } from '../types.ts';
 
 export class ApiKeysResource {
 	constructor(private readonly client: PostStackClient) {}
@@ -13,8 +13,9 @@ export class ApiKeysResource {
 		return this.client.post('/api-keys', input);
 	}
 
-	async list(params?: ListParams): Promise<{ keys: ApiKey[] }> {
-		return this.client.get('/api-keys', params as Record<string, string | number | undefined>);
+	/** Every key on the team — the route does not paginate. */
+	async list(): Promise<{ keys: ApiKey[] }> {
+		return this.client.get('/api-keys');
 	}
 
 	async get(id: number): Promise<ApiKey> {

@@ -5,7 +5,8 @@ import type {
 	Template,
 	TemplatePreset,
 	PaginatedResponse,
-	ListParams,
+	ListTemplatesParams,
+	RenderTemplateResult,
 } from '../types.ts';
 
 export class TemplatesResource {
@@ -16,8 +17,8 @@ export class TemplatesResource {
 		return res.template;
 	}
 
-	async list(params?: ListParams): Promise<PaginatedResponse<Template>> {
-		return this.client.get('/templates', params as Record<string, string | number | undefined>);
+	async list(params?: ListTemplatesParams): Promise<PaginatedResponse<Template>> {
+		return this.client.get('/templates', { ...params });
 	}
 
 	async get(id: string): Promise<Template> {
@@ -60,11 +61,27 @@ export class TemplatesResource {
 		return res.template;
 	}
 
-	async getPresets(): Promise<{ presets: TemplatePreset[] }> {
-		return this.client.get('/templates/presets');
+	/**
+	 * Renders a template with `variables` exactly as a send would, without
+	 * sending. `missing_variables` lists the ones the template uses that you
+	 * did not supply.
+	 */
+	async render(id: string, variables?: Record<string, string>): Promise<RenderTemplateResult> {
+		return this.client.post(`/templates/${encodeURIComponent(id)}/render`, {
+			...(variables !== undefined ? { variables } : {}),
+		});
 	}
 
+	async getPresets(): Promise<TemplatePreset[]> {
+		const res = await this.client.get<{ data: TemplatePreset[] }>('/templates/presets');
+		return res.data;
+	}
+
+	/** Creates a template from a preset. `presetId` is the preset's string id, e.g. `welcome`. */
 	async usePreset(presetId: string): Promise<Template> {
-		return this.client.post(`/templates/presets/${encodeURIComponent(presetId)}/use`);
+		const res = await this.client.post<{ template: Template }>(
+			`/templates/presets/${encodeURIComponent(presetId)}/use`,
+		);
+		return res.template;
 	}
 }
